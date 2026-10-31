@@ -5,7 +5,19 @@ class MiServidor(BaseHTTPRequestHandler):
     def plantilla(self, contenido):
         with open("plantilla.html", "r", encoding="utf-8") as archivo:
             html = archivo.read()
-        html = html.replace("{contenido}", contenido)
+        fondo = """
+        <style>
+            body {
+                background-image: url('/fotogimnasio.jpg');
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+                min-height: 100vh;
+            }
+        </style>
+        """
+        html = html.replace("{contenido}", fondo + contenido)
         return html
 
     def do_GET(self):
@@ -13,7 +25,7 @@ class MiServidor(BaseHTTPRequestHandler):
             contenido = """
             <div class="card">
                 <h2>Inicio</h2>
-                <p>Bienvenido a la escuela</p>
+                <p>Bienvenido al gimnasio</p>
             </div>
             """
             html = self.plantilla(contenido)
@@ -21,6 +33,14 @@ class MiServidor(BaseHTTPRequestHandler):
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
             self.wfile.write(html.encode('utf-8'))
+
+        elif self.path == '/fotogimnasio.jpg':
+            with open("fotogimnasio.jpg", "rb") as archivo:
+                imagen = archivo.read()
+            self.send_response(200)
+            self.send_header('Content-type', 'image/jpeg')
+            self.end_headers()
+            self.wfile.write(imagen)
 
         elif self.path == '/clientes':
             try:
@@ -31,7 +51,7 @@ class MiServidor(BaseHTTPRequestHandler):
                     database="mi_ignacio"
                 )
                 cursor = conexion.cursor()
-                cursor.execute("SELECT nombre, apellido, telefono, email, dni    ion FROM clientes")
+                cursor.execute("SELECT nombre, apellido, telefono, email, dni, id_plan FROM clientes")
                 resultados = cursor.fetchall()
                 cursor.close()
                 conexion.close()
@@ -57,9 +77,10 @@ class MiServidor(BaseHTTPRequestHandler):
                 contenido += "<tr>"
                 contenido += f"<td style='border: 1px solid #333; padding: 8px;'>{nombre}</td>"
                 contenido += f"<td style='border: 1px solid #333; padding: 8px;'>{apellido}</td>"
-                contenido += f"<td style='border: 1px solid #333; padding: 8px;'>{telelfono}</td>"
+                contenido += f"<td style='border: 1px solid #333; padding: 8px;'>{telefono}</td>"
                 contenido += f"<td style='border: 1px solid #333; padding: 8px;'>{email}</td>"
                 contenido += f"<td style='border: 1px solid #333; padding: 8px;'>{dni}</td>"
+                contenido += f"<td style='border: 1px solid #333; padding: 8px;'>{id_plan}</td>"
 
                 contenido += f"""<td style='border: 1px solid #333; padding: 8px;'>
                     <form method="POST" action="/eliminar_cliente" style="margin:0;">
@@ -80,6 +101,7 @@ class MiServidor(BaseHTTPRequestHandler):
             self.wfile.write(html.encode('utf-8'))
 
         elif self.path == '/profesores':
+          
             try:
                 conexion = mysql.connector.connect(
                     host="localhost",
@@ -88,7 +110,7 @@ class MiServidor(BaseHTTPRequestHandler):
                     database="mi_ignacio"
                 )
                 cursor = conexion.cursor()
-                cursor.execute("SELECT ID_profesor, nombre, apellido, mail, teléfono FROM PROFESORES")
+                cursor.execute("SELECT id_profesor, nombre_profe, apellido_profe, especialidad FROM profesores")
                 resultados = cursor.fetchall()
                 cursor.close()
                 conexion.close()
@@ -98,8 +120,15 @@ class MiServidor(BaseHTTPRequestHandler):
 
             contenido = "<div class='card'>"
             contenido += "<h2>Lista de profesores</h2>"
-            for id_prof, nombre, apellido, mail, telefono in resultados:
-                contenido += f"<p><strong>{nombre} {apellido}</strong> — Mail: {mail} | Tel: {telefono}</p>"
+            for id_profesor, nombre_profe, apellido_profe,especialidad in resultados:
+                contenido += f"""<div style="margin: 16px 0;">
+                    <strong>{nombre_profe} {apellido_profe}</strong> — id_profesor: {id_profesor} | Especialidad: {especialidad}
+                    <a href="/modificar_profesor?id={id_profesor}">Modificar</a>
+                    <form method="POST" action="/eliminar_profesor" style="display:inline; margin:0;">
+                        <input type="hidden" name="id_profesor" value="{id_profesor}">
+                        <button type="submit">Eliminar</button>
+                    </form>
+                </div>"""
             contenido += "</div>"
             html = self.plantilla(contenido)
             self.send_response(200)
@@ -107,37 +136,24 @@ class MiServidor(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(html.encode('utf-8'))
 
-       
-            
-    
-    
-    
-    
     
 
         elif self.path == '/registroclientes':
             contenido = """
             <div class="card">
                 <h2>Registrar Alumno</h2>
-                <form method="POST" action="/guardar_alumno">
+                <form method="POST" action="/guardar_cliente">
                     <p>Nombre:<br><input type="text" name="nombre" required></p>
                     <p>Apellido:<br><input type="text" name="apellido" required></p>
-                    <p>Division:<br>
-                        A: <input type="radio" name="division" value="A" required><br>
-                        B: <input type="radio" name="division" value="B"><br>
-                        C: <input type="radio" name="division" value="C">
-                    </p>
-                    <p>Curso
-                        <select name="curso">
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                            <option value="6">6</option>
-                            <option value="7">7</option>
+                    <p>Telefono:<br><input type="text" name="telefono" required></p>
+                    <p>Email:<br><input type="email" name="email" required></p>
+                    <p>DNI:<br><input type="number" name="dni" required></p>
+                    <p>Plan:<br>
+                        <select name="id_plan">
+                            <option value="1">Mensual</option>
+                            <option value="2">Trimestral</option>
+                            <option value="3">Anual</option>
                         </select>
-                        DNI:<br><input type="number" name="dni" required>
                     </p>
                     <p><button type="submit">Guardar</button></p>
                 </form>
@@ -156,8 +172,7 @@ class MiServidor(BaseHTTPRequestHandler):
                 <form method="POST" action="/guardar_profe">
                     <p>Nombre:<br><input type="text" name="nombre" required></p>
                     <p>Apellido:<br><input type="text" name="apellido" required></p>
-                    <p>Mail<br><input type="email" name="mail" required></p>
-                    <p>Telefono:<br><input type="text" name="telefono" required></p>
+                    <p>Especialidad:<br><input type="text" name="especialidad" required></p>
                     <p><button type="submit">Guardar</button></p>
                 </form>
             </div>
@@ -183,7 +198,7 @@ class MiServidor(BaseHTTPRequestHandler):
                     database="mi_ignacio"
                 )
                 cursor = conexion.cursor()
-                cursor.execute("SELECT nombre, apellido,telefono , division, email, dni FROM clientes WHERE DNI = %s", (dni,))
+                cursor.execute("SELECT nombre, apellido, telefono, email, id_plan FROM clientes WHERE dni = %s", (dni,))
                 alumno = cursor.fetchone()
                 cursor.close()
                 conexion.close()
@@ -195,12 +210,7 @@ class MiServidor(BaseHTTPRequestHandler):
                 self.send_error(404, "Alumno no encontrado")
                 return
 
-            nombre, apellido, curso, division = alumno
-
-            opciones_curso = ""
-            for c in range(1, 8):
-                seleccionado = "selected" if str(curso) == str(c) else ""
-                opciones_curso += f'<option value="{c}" {seleccionado}>{c}</option>'
+            nombre, apellido, telefono, email, id_plan = alumno
 
             contenido = f"""
             <div class="card">
@@ -209,14 +219,13 @@ class MiServidor(BaseHTTPRequestHandler):
                     <input type="hidden" name="dni" value="{dni}">
                     <p>Nombre:<br><input type="text" name="nombre" value="{nombre}" required></p>
                     <p>Apellido:<br><input type="text" name="apellido" value="{apellido}" required></p>
-                    <p>Division:<br>
-                        A: <input type="radio" name="division" value="A" {"checked" if division == "A" else ""} required><br>
-                        B: <input type="radio" name="division" value="B" {"checked" if division == "B" else ""}><br>
-                        C: <input type="radio" name="division" value="C" {"checked" if division == "C" else ""}>
-                    </p>
-                    <p>Curso
-                        <select name="curso">
-                            {opciones_curso}
+                    <p>Telefono:<br><input type="text" name="telefono" value="{telefono}" required></p>
+                    <p>Email:<br><input type="email" name="email" value="{email}" required></p>
+                    <p>Plan:<br>
+                        <select name="id_plan">
+                            <option value="1" {"selected" if str(id_plan) == "1" else ""}>Mensual</option>
+                            <option value="2" {"selected" if str(id_plan) == "2" else ""}>Trimestral</option>
+                            <option value="3" {"selected" if str(id_plan) == "3" else ""}>Anual</option>
                         </select>
                     </p>
                     <p><button type="submit">Guardar cambios</button></p>
@@ -230,8 +239,54 @@ class MiServidor(BaseHTTPRequestHandler):
             self.wfile.write(html.encode('utf-8'))
 
 
+        elif self.path.startswith('/modificar_profesor'):
+            from urllib.parse import urlparse, parse_qs
+            parametros = parse_qs(urlparse(self.path).query)
+            id_profesor = parametros.get('id', [''])[0]
+
+            try:
+                conexion = mysql.connector.connect(
+                    host="localhost",
+                    user="root",
+                    password="",
+                    database="mi_ignacio"
+                )
+                cursor = conexion.cursor()
+                cursor.execute("SELECT nombre_profe, apellido_profe, especialidad FROM profesores WHERE id_profesor = %s", (id_profesor,))
+                profesor = cursor.fetchone()
+                cursor.close()
+                conexion.close()
+            except Exception as e:
+                self.send_error(500, f"Error: {e}")
+                return
+
+            if profesor is None:
+                self.send_error(404, "Profesor no encontrado")
+                return
+
+            nombre_profe, apellido_profe, especialidad = profesor
+
+            contenido = f"""
+            <div class="card">
+                <h2>Modificar Profesor</h2>
+                <form method="POST" action="/guardar_modificacion_profe">
+                    <input type="hidden" name="id_profesor" value="{id_profesor}">
+                    <p>Nombre:<br><input type="text" name="nombre" value="{nombre_profe}" required></p>
+                    <p>Apellido:<br><input type="text" name="apellido" value="{apellido_profe}" required></p>
+                    <p>Especialidad:<br><input type="text" name="especialidad" value="{especialidad}" required></p>
+                    <p><button type="submit">Guardar cambios</button></p>
+                </form>
+            </div>
+            """
+            html = self.plantilla(contenido)
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(html.encode('utf-8'))
+
+
     def do_POST(self):
-        if self.path == '/guardar_alumno':
+        if self.path == '/guardar_cliente':
             longitud = int(self.headers['Content-Length'])
             datos = self.rfile.read(longitud).decode('utf-8')
 
@@ -240,8 +295,9 @@ class MiServidor(BaseHTTPRequestHandler):
 
             nombre   = campos.get('nombre', [''])[0]
             apellido = campos.get('apellido', [''])[0]
-            curso    = campos.get('curso', [''])[0]
-            division = campos.get('division', [''])[0]
+            telefono = campos.get('telefono', [''])[0]
+            email    = campos.get('email', [''])[0]
+            id_plan  = campos.get('id_plan', [''])[0]
             dni      = campos.get('dni', [''])[0]
 
             try:
@@ -253,8 +309,8 @@ class MiServidor(BaseHTTPRequestHandler):
                 )
                 cursor = conexion.cursor()
                 cursor.execute(
-                    "INSERT INTO alumnos (NOMBRE, APELLIDO, curso, division, DNI) VALUES (%s, %s, %s, %s, %s)",
-                    (nombre, apellido, curso, division, dni)
+                    "INSERT INTO clientes (dni, id_plan, nombre, apellido, telefono, email) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (dni, id_plan, nombre, apellido, telefono, email)
                 )
                 conexion.commit()
                 cursor.close()
@@ -264,7 +320,7 @@ class MiServidor(BaseHTTPRequestHandler):
                 return
 
             self.send_response(303)
-            self.send_header('Location', '/alumnos')
+            self.send_header('Location', '/clientes')
             self.end_headers()
 
         elif self.path == '/guardar_profe':
@@ -274,10 +330,9 @@ class MiServidor(BaseHTTPRequestHandler):
             from urllib.parse import parse_qs
             campos = parse_qs(datos)
 
-            nombre   = campos.get('nombre', [''])[0]
-            apellido = campos.get('apellido', [''])[0]
-            mail     = campos.get('mail', [''])[0]
-            telefono = campos.get('telefono', [''])[0]
+            nombre_profe   = campos.get('nombre', [''])[0]
+            apellido_profe = campos.get('apellido', [''])[0]
+            especialidad = campos.get('especialidad', [''])[0]
 
             try:
                 conexion = mysql.connector.connect(
@@ -288,8 +343,8 @@ class MiServidor(BaseHTTPRequestHandler):
                 )
                 cursor = conexion.cursor()
                 cursor.execute(
-                    "INSERT INTO profesores (nombre, apellido, mail, teléfono) VALUES (%s, %s, %s, %s)",
-                    (nombre, apellido, mail, telefono)
+                    "INSERT INTO profesores (nombre_profe, apellido_profe, especialidad) VALUES (%s, %s, %s)",
+                    (nombre_profe, apellido_profe, especialidad)
                 )
                 conexion.commit()
                 cursor.close()
@@ -302,42 +357,7 @@ class MiServidor(BaseHTTPRequestHandler):
             self.send_header('Location', '/profesores')
             self.end_headers()
 
-        elif self.path == '/guardar_materia':
-            longitud = int(self.headers['Content-Length'])
-            datos = self.rfile.read(longitud).decode('utf-8')
-
-            from urllib.parse import parse_qs
-            campos = parse_qs(datos)
-
-            nombre      = campos.get('nombre', [''])[0]
-            grado       = campos.get('grado', [''])[0]
-            seccion     = campos.get('seccion', [''])[0]
-            id_profesor = campos.get('id_profesor', [''])[0]
-
-            try:
-                conexion = mysql.connector.connect(
-                    host="localhost",
-                    user="root",
-                    password="",
-                    database="mi_ignacio"
-                )
-                cursor = conexion.cursor()
-                cursor.execute(
-                    "INSERT INTO materias (nombre, grado, seccion, id_profesor) VALUES (%s, %s, %s, %s)",
-                    (nombre, grado, seccion, id_profesor)
-                )
-                conexion.commit()
-                cursor.close()
-                conexion.close()
-            except Exception as e:
-                self.send_error(500, f"Error al guardar: {e}")
-                return
-
-            self.send_response(303)
-            self.send_header('Location', '/materias')
-            self.end_headers()
-
-        elif self.path == '/eliminar_alumno':
+        elif self.path == '/eliminar_cliente':
             longitud = int(self.headers['Content-Length'])
             datos = self.rfile.read(longitud).decode('utf-8')
 
@@ -354,7 +374,7 @@ class MiServidor(BaseHTTPRequestHandler):
                     database="mi_ignacio"
                 )
                 cursor = conexion.cursor()
-                cursor.execute("DELETE FROM alumnos WHERE DNI = %s", (dni,))
+                cursor.execute("DELETE FROM clientes WHERE dni = %s", (dni,))
                 conexion.commit()
                 cursor.close()
                 conexion.close()
@@ -363,7 +383,7 @@ class MiServidor(BaseHTTPRequestHandler):
                 return
 
             self.send_response(303)
-            self.send_header('Location', '/alumnos')
+            self.send_header('Location', '/clientes')
             self.end_headers()
 
         elif self.path == '/guardar_modificacion':
@@ -376,8 +396,9 @@ class MiServidor(BaseHTTPRequestHandler):
             dni      = campos.get('dni', [''])[0]
             nombre   = campos.get('nombre', [''])[0]
             apellido = campos.get('apellido', [''])[0]
-            curso    = campos.get('curso', [''])[0]
-            division = campos.get('division', [''])[0]
+            telefono = campos.get('telefono', [''])[0]
+            email    = campos.get('email', [''])[0]
+            id_plan  = campos.get('id_plan', [''])[0]
 
             try:
                 conexion = mysql.connector.connect(
@@ -388,8 +409,8 @@ class MiServidor(BaseHTTPRequestHandler):
                 )
                 cursor = conexion.cursor()
                 cursor.execute(
-                    "UPDATE alumnos SET NOMBRE = %s, APELLIDO = %s, curso = %s, division = %s WHERE DNI = %s",
-                    (nombre, apellido, curso, division, dni)
+                    "UPDATE clientes SET nombre = %s, apellido = %s, telefono = %s, email = %s, id_plan = %s WHERE dni = %s",
+                    (nombre, apellido, telefono, email, id_plan, dni)
                 )
                 conexion.commit()
                 cursor.close()
@@ -399,7 +420,71 @@ class MiServidor(BaseHTTPRequestHandler):
                 return
 
             self.send_response(303)
-            self.send_header('Location', '/alumnos')
+            self.send_header('Location', '/clientes')
+            self.end_headers()
+
+        elif self.path == '/eliminar_profesor':
+            longitud = int(self.headers['Content-Length'])
+            datos = self.rfile.read(longitud).decode('utf-8')
+
+            from urllib.parse import parse_qs
+            campos = parse_qs(datos)
+
+            id_profesor = campos.get('id_profesor', [''])[0]
+
+            try:
+                conexion = mysql.connector.connect(
+                    host="localhost",
+                    user="root",
+                    password="",
+                    database="mi_ignacio"
+                )
+                cursor = conexion.cursor()
+                cursor.execute("DELETE FROM profesores WHERE id_profesor = %s", (id_profesor,))
+                conexion.commit()
+                cursor.close()
+                conexion.close()
+            except Exception as e:
+                self.send_error(500, f"Error al eliminar: {e}")
+                return
+
+            self.send_response(303)
+            self.send_header('Location', '/profesores')
+            self.end_headers()
+
+        elif self.path == '/guardar_modificacion_profe':
+            longitud = int(self.headers['Content-Length'])
+            datos = self.rfile.read(longitud).decode('utf-8')
+
+            from urllib.parse import parse_qs
+            campos = parse_qs(datos)
+
+            id_profesor    = campos.get('id_profesor', [''])[0]
+            nombre_profe   = campos.get('nombre', [''])[0]
+            apellido_profe = campos.get('apellido', [''])[0]
+            especialidad   = campos.get('especialidad', [''])[0]
+
+            try:
+                conexion = mysql.connector.connect(
+                    host="localhost",
+                    user="root",
+                    password="",
+                    database="mi_ignacio"
+                )
+                cursor = conexion.cursor()
+                cursor.execute(
+                    "UPDATE profesores SET nombre_profe = %s, apellido_profe = %s, especialidad = %s WHERE id_profesor = %s",
+                    (nombre_profe, apellido_profe, especialidad, id_profesor)
+                )
+                conexion.commit()
+                cursor.close()
+                conexion.close()
+            except Exception as e:
+                self.send_error(500, f"Error al modificar: {e}")
+                return
+
+            self.send_response(303)
+            self.send_header('Location', '/profesores')
             self.end_headers()
 
         else:
